@@ -37,10 +37,7 @@ Required parameters:
 
 Optional parameters:
 
-- _access\_token_: the session access token
-- _proxy\_url_: URL for proxy server
-- _proxy\_user_: username for proxy server
-- _proxy\_password_: password for proxy server
+- _\*\*kwargs_: arguments passed to the Requests objects
 
 
 `Connection.vehicles`: A list of Vehicle objects, corresponding to the
