@@ -1,5 +1,8 @@
 # Changelog
 
+## Version 2.0
+- Rewritten with Requests library
+
 ## Version 1.3
 - Removed API and baseurl from constructor; added proxy support
 

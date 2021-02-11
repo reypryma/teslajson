@@ -5,7 +5,7 @@ Written by Greg Glockner
 
 ## Description
 This is a simple Python interface to the [Tesla JSON
-API](http://docs.timdorr.apiary.io/). With this, you can query your
+API](https://tesla-api.timdorr.com). With this, you can query your
 vehicle, control charge settings, turn on the air conditioning, and
 more.  You can also embed this into other programs to automate these
 controls.
@@ -56,12 +56,12 @@ All standard dictionary methods are supported.
 `Vehicle.data_request(name)`: Retrieve data values specified by _name_, such
 as _charge\_state_, _climate\_state_, _vehicle\_state_. Returns a
 dictionary (_dict_).  For a full list of _name_ values, see the _GET_
-commands in the [Tesla JSON API](http://docs.timdorr.apiary.io/).
+commands in the [Tesla JSON API](https://tesla-api.timdorr.com).
 
 `Vehicle.command(name)`: Execute the command specified by _name_, such
 as _charge\_port\_door\_open_, _charge\_max\_range_. Returns a
-dictionary (_dict_).  For a full list of  _name_ values, see the _POST_ commands
-in the [Tesla JSON API](http://docs.timdorr.apiary.io/).
+dictionary (_dict_).  For a full list of _name_ values, see the _POST_ commands
+in the [Tesla JSON API](https://tesla-api.timdorr.com/).
 
 ## Example
 	import teslajson
@@ -76,8 +76,9 @@ Many thanks to [Tim Dorr](http://timdorr.com) for documenting the Tesla JSON API
 This would not be possible without his work.
 
 ## Disclaimer
-This software is provided as-is.  This software is not supported by or
-endorsed by Tesla Motors.  Tesla Motors does not publicly support the
-underlying JSON API, so this software may stop working at any time.  The
-author makes no guarantee to release an updated version to fix any
+This software is provided as-is. This software is not supported by or
+endorsed by Tesla. It was developed via reverse-engineering of an
+unpublished JSON API. Tesla does not publicly support the underlying
+JSON API, so this software may stop working at any time. The author
+makes no guarantee to release an updated version to fix any
 incompatibilities.
