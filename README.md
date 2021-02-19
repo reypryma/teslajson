@@ -36,7 +36,8 @@ Required parameters:
 - _password_: your password for teslamotors.com
 
 Optional parameters:
-
+- _mfa_: your multi-factor authentication code, if enabled on your account
+- _mfa\_id_: if you have multiple MFA devices, the UUID for the MFA device you want to use
 - _\*\*kwargs_: arguments passed to the Requests objects
 
 

@@ -98,7 +98,7 @@ class Connection(object):
           if not self.mfa:
             raise RuntimeError('A MFA passcode is required')
           mfa_data = {'transaction_id': login_data['transaction_id'],
-                      'passcode': str(self.mfa)}
+                      'passcode': self.mfa}
           if not self.mfa_id:
             r = self.sso_session.get(self.oauth_uri+"authorize/mfa/factors",
                                      params=mfa_data)
