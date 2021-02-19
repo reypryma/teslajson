@@ -47,14 +47,21 @@ class Connection(object):
         
         self.email = email
         self.password = password
-        self.mfa = mfa
-        self.mfa_id = mfa_id
-        self.sso_uri = "https://auth.tesla.com"
-        self.api_uri = "https://owner-api.teslamotors.com"
-        self.data_uri = self.api_uri + "/api/1/"
-        self.oauth_uri = self.sso_uri + "/oauth2/v3/"
-        self.api_client_id = "81527cff06843c8634fdc09e8ac0abefb46ac849f38fe1e431c2ef2106796384"
-        self.api_client_secret = "c7257eb71a564034f9419ee651c7d0e5f7aa6bfbd18bafb5c5c033b093bb2fa3"
+        self.mfa = {
+          'passcode': mfa,
+          'factor_id': mfa_id
+        }
+        self.uri = {
+          'sso': "https://auth.tesla.com",
+          'api': "https://owner-api.teslamotors.com"
+        }
+        self.uri['data'] = self.uri['api'] + "/api/1/"
+        self.uri['oauth'] = self.uri['sso'] + "/oauth2/v3/"
+        self.api = {
+          'client_id': "81527cff06843c8634fdc09e8ac0abefb46ac849f38fe1e431c2ef2106796384",
+          'client_secret': "c7257eb71a564034f9419ee651c7d0e5f7aa6bfbd18bafb5c5c033b093bb2fa3"
+        }
+        self.session = {}
 
         self.fetch_token(**kwargs)
 
@@ -62,10 +69,10 @@ class Connection(object):
         self.vehicles = [Vehicle(v, self) for v in self.request('GET', 'vehicles')]
 
     def fetch_sso_token(self, **kwargs):
-        redirect_uri = self.sso_uri + "/void/callback"
+        redirect_uri = self.uri['sso'] + "/void/callback"
 
         # Step 1: Obtain the login page
-        self.sso_session = requests_oauthlib.OAuth2Session(
+        self.session['sso'] = requests_oauthlib.OAuth2Session(
           redirect_uri = redirect_uri,
           client_id='ownerapi',
           **kwargs)
@@ -73,8 +80,8 @@ class Connection(object):
         code_verifier = self.__randstr(86)
         hexdigest = hashlib.sha256(code_verifier.encode('utf-8')).hexdigest()
         code_challenge = base64.urlsafe_b64encode(hexdigest.encode('utf-8')).decode('utf-8')
-        login_uri = self.oauth_uri+"authorize"
-        self.sso_session.params = {
+        login_uri = self.uri['oauth']+"authorize"
+        self.session['sso'].params = {
           'client_id': 'ownerapi',
           'code_challenge': code_challenge,
           'code_challenge_method': 'S256',
@@ -82,7 +89,7 @@ class Connection(object):
           'response_type': 'code',
           'scope': 'openid email offline_access',
           'state': self.__randstr(24) }
-        r = self.sso_session.get(login_uri)
+        r = self.session['sso'].get(login_uri)
         r.raise_for_status()
         login_data = dict(re.findall(
           '<input type="hidden" name="([^"]*)" value="([^"]*)"', r.text))
@@ -90,27 +97,25 @@ class Connection(object):
         # Step 2: Obtain an authorization code
         login_data['identity'] = self.email
         login_data['credential'] = self.password
-        r = self.sso_session.post(login_uri, data=login_data, allow_redirects=False)
+        r = self.session['sso'].post(login_uri, data=login_data, allow_redirects=False)
         r.raise_for_status()
         
         # Handle MFA
         if (re.search('passcode', r.text)):
-          if not self.mfa:
+          if not self.mfa['passcode']:
             raise RuntimeError('MFA passcode is required')
-          mfa_data = {'transaction_id': login_data['transaction_id']}
-          if not self.mfa_id:
-            r = self.sso_session.get(self.oauth_uri+"authorize/mfa/factors",
-                                     params=mfa_data)
+          self.mfa['transaction_id'] = login_data['transaction_id']
+          if not self.mfa['factor_id']:
+            r = self.session['sso'].get(self.uri['oauth']+"authorize/mfa/factors",
+                                     params=self.mfa)
             r.raise_for_status()
-            self.mfa_id = r.json()['data'][0]['id']
-          mfa_data['passcode'] = self.mfa
-          mfa_data['factor_id'] = self.mfa_id
-          r = self.sso_session.post(self.oauth_uri+"authorize/mfa/verify",
-                                    json=mfa_data)
+            self.mfa['factor_id'] = r.json()['data'][0]['id']
+          r = self.session['sso'].post(self.uri['oauth']+"authorize/mfa/verify",
+                                    json=self.mfa)
           r.raise_for_status()
           if not r.json()['data']['valid']:
             raise RuntimeError('Invalid MFA passcode')
-          r = self.sso_session.post(login_uri,
+          r = self.session['sso'].post(login_uri,
                                     data={'transaction_id': login_data['transaction_id']},
                                     allow_redirects=False)
           r.raise_for_status()
@@ -119,10 +124,10 @@ class Connection(object):
         authorization_code = m.group(1)
         
         # Step 3: Exchange authorization code for bearer token
-        self.sso_session.params = None
-        self.sso_session.token_url = self.oauth_uri+"token"
-        self.sso_session.fetch_token(
-            self.sso_session.token_url,
+        self.session['sso'].params = None
+        self.session['sso'].token_url = self.uri['oauth']+"token"
+        self.session['sso'].fetch_token(
+            self.session['sso'].token_url,
             code=authorization_code, code_verifier=code_verifier,
             include_client_id=True)
       
@@ -130,14 +135,14 @@ class Connection(object):
         # Step 4: Exchange bearer token for access token
         # (Create the main oauth2 session by calling the super initializer)
         client = oauthlib.oauth2.BackendApplicationClient(
-          client_id=self.api_client_id, token_type='Bearer')
+          client_id=self.api['client_id'], token_type='Bearer')
         client.grant_type = 'urn:ietf:params:oauth:grant-type:jwt-bearer'
-        self.api_session = requests_oauthlib.OAuth2Session(client=client, **kwargs)
-        self.api_session.token_url = self.api_uri+'/oauth/token'
-        self.api_session.fetch_token(
-          self.api_session.token_url,
-          client_secret=self.api_client_secret,
-          headers={'Authorization': 'Bearer %s' % self.sso_session.token['access_token']},
+        self.session['api'] = requests_oauthlib.OAuth2Session(client=client, **kwargs)
+        self.session['api'].token_url = self.uri['api']+'/oauth/token'
+        self.session['api'].fetch_token(
+          self.session['api'].token_url,
+          client_secret=self.api['client_secret'],
+          headers={'Authorization': 'Bearer %s' % self.session['sso'].token['access_token']},
           include_client_id=True)
     
     def fetch_token(self, **kwargs):
@@ -147,17 +152,18 @@ class Connection(object):
 
     def refresh_token(self):
         # Note: We only need to refresh the API token
-        self.api_session.refresh_token(self.api_session.token_url)
+        self.session['api'].refresh_token(self.session['api'].token_url)
     
     def __randstr(self, n):
         return ''.join(random.choice(self.__randchars) for i in range(n))
     
     def request(self, method, command, rdata=None):
+        """Utility command to process API request
+        """
         try:
-          r = self.api_session.request(method, self.data_uri + command, data=rdata)
+          r = self.session['api'].request(method, self.uri['data'] + command, data=rdata)
         except oauthlib.oauth2.TokenExpiredError as e:
-          # refresh API token
-          self.api_session.refresh_token(self.api_session.token_url)
+          self.refresh_token()
           return self.requestdata(method, command, rdata)
         r.raise_for_status()
         return r.json()['response']
