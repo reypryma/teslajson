@@ -59,7 +59,7 @@ class Connection(object):
         self.fetch_token(**kwargs)
 
         # Get vehicles
-        self.vehicles = [Vehicle(v, self) for v in self.getdata('vehicles')['response']]
+        self.vehicles = [Vehicle(v, self) for v in self.request('GET', 'vehicles')]
 
     def fetch_sso_token(self, **kwargs):
         redirect_uri = self.sso_uri + "/void/callback"
@@ -152,15 +152,13 @@ class Connection(object):
     def __randstr(self, n):
         return ''.join(random.choice(self.__randchars) for i in range(n))
     
-    def getdata(self, command):
-        """Utility command to get data from API"""
-        r = self.api_session.get(self.data_uri + command)
-        r.raise_for_status()
-        return r.json()
-
-    def postdata(self, command, data={}):
-        """Utility command to post data to API"""
-        r = self.api_session.post(self.data_uri + command, data)
+    def request(self, method, command, rdata=None):
+        try:
+          r = self.api_session.request(method, self.data_uri + command, data=rdata)
+        except oauthlib.oauth2.TokenExpiredError as e:
+          # refresh API token
+          self.api_session.refresh_token(self.api_session.token_url)
+          return self.requestdata(method, command, rdata)
         r.raise_for_status()
         return r.json()['response']
         
@@ -182,8 +180,7 @@ class Vehicle(dict):
     
     def data_request(self, name):
         """Get vehicle data"""
-        result = self.get('data_request/%s' % name)
-        return result['response']
+        return self.get('data_request/%s' % name)
     
     def wake_up(self):
         """Wake the vehicle"""
@@ -195,8 +192,8 @@ class Vehicle(dict):
     
     def get(self, command):
         """Utility command to get data from API"""
-        return self.connection.getdata('vehicles/%i/%s' % (self['id'], command))
+        return self.connection.request('GET', 'vehicles/%i/%s' % (self['id'], command))
     
     def post(self, command, data={}):
         """Utility command to post data to API"""
-        return self.connection.postdata('vehicles/%i/%s' % (self['id'], command), data)
+        return self.connection.request('POST', 'vehicles/%i/%s' % (self['id'], command), data)
