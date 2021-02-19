@@ -96,14 +96,14 @@ class Connection(object):
         # Handle MFA
         if (re.search('passcode', r.text)):
           if not self.mfa:
-            raise RuntimeError('A MFA passcode is required')
-          mfa_data = {'transaction_id': login_data['transaction_id'],
-                      'passcode': self.mfa}
+            raise RuntimeError('MFA passcode is required')
+          mfa_data = {'transaction_id': login_data['transaction_id']}
           if not self.mfa_id:
             r = self.sso_session.get(self.oauth_uri+"authorize/mfa/factors",
                                      params=mfa_data)
             r.raise_for_status()
             self.mfa_id = r.json()['data'][0]['id']
+          mfa_data['passcode'] = self.mfa
           mfa_data['factor_id'] = self.mfa_id
           r = self.sso_session.post(self.oauth_uri+"authorize/mfa/verify",
                                     json=mfa_data)
