@@ -28,6 +28,8 @@ class Connection(object):
     def __init__(self,
             email='',
             password='',
+            mfa='',
+            mfa_id='',
             **kwargs):
         """Initialize connection object
         
@@ -37,13 +39,20 @@ class Connection(object):
         Required parameters:
         email: your login for teslamotors.com
         password: your password for teslamotors.com
+        
+        Optional parameters:
+        mfa: multifactor passcode
+        mfa_id: multifactor id (if you have multiple MFA devices)
         """
         
         self.email = email
         self.password = password
+        self.mfa = mfa
+        self.mfa_id = mfa_id
         self.sso_uri = "https://auth.tesla.com"
         self.api_uri = "https://owner-api.teslamotors.com"
         self.data_uri = self.api_uri + "/api/1/"
+        self.oauth_uri = self.sso_uri + "/oauth2/v3/"
         self.api_client_id = "81527cff06843c8634fdc09e8ac0abefb46ac849f38fe1e431c2ef2106796384"
         self.api_client_secret = "c7257eb71a564034f9419ee651c7d0e5f7aa6bfbd18bafb5c5c033b093bb2fa3"
 
@@ -64,7 +73,7 @@ class Connection(object):
         code_verifier = self.__randstr(86)
         hexdigest = hashlib.sha256(code_verifier.encode('utf-8')).hexdigest()
         code_challenge = base64.urlsafe_b64encode(hexdigest.encode('utf-8')).decode('utf-8')
-        login_uri = self.sso_uri+'/oauth2/v3/authorize'
+        login_uri = self.oauth_uri+"authorize"
         self.sso_session.params = {
           'client_id': 'ownerapi',
           'code_challenge': code_challenge,
@@ -83,12 +92,35 @@ class Connection(object):
         login_data['credential'] = self.password
         r = self.sso_session.post(login_uri, data=login_data, allow_redirects=False)
         r.raise_for_status()
+        
+        # Handle MFA
+        if (re.search('passcode', r.text)):
+          if not self.mfa:
+            raise RuntimeError('A MFA passcode is required')
+          mfa_data = {'transaction_id': login_data['transaction_id'],
+                      'passcode': str(self.mfa)}
+          if not self.mfa_id:
+            r = self.sso_session.get(self.oauth_uri+"authorize/mfa/factors",
+                                     params=mfa_data)
+            r.raise_for_status()
+            self.mfa_id = r.json()['data'][0]['id']
+          mfa_data['factor_id'] = self.mfa_id
+          r = self.sso_session.post(self.oauth_uri+"authorize/mfa/verify",
+                                    json=mfa_data)
+          r.raise_for_status()
+          if not r.json()['data']['valid']:
+            raise RuntimeError('Invalid MFA passcode')
+          r = self.sso_session.post(login_uri,
+                                    data={'transaction_id': login_data['transaction_id']},
+                                    allow_redirects=False)
+          r.raise_for_status()
+
         m = re.search('code=([^&]*)',r.headers['location'])
         authorization_code = m.group(1)
         
         # Step 3: Exchange authorization code for bearer token
         self.sso_session.params = None
-        self.sso_session.token_url = self.sso_uri+'/oauth2/v3/token'
+        self.sso_session.token_url = self.oauth_uri+"token"
         self.sso_session.fetch_token(
             self.sso_session.token_url,
             code=authorization_code, code_verifier=code_verifier,
