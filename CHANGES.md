@@ -1,7 +1,8 @@
 # Changelog
 
 ## Version 2.0
-- Rewritten with Requests library
+- Rewritten with Requests library, in order to support the latest Tesla authentication protocol.
+- Packaged via PyPI (pip)
 
 ## Version 1.3
 - Removed API and baseurl from constructor; added proxy support

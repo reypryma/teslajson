@@ -17,14 +17,16 @@ methods on a _Vehicle_.  There is a single get method
 that the class does not require changes when there are minor updates
 to the underlying JSON API.
 
-This has been tested with Python 2.7 and Python 3.5.  It has no dependencies
-beyond the standard Python libraries.
+This has been tested with Python 3.7 and requires the
+[Requests-OAuthlib](https://requests-oauthlib.readthedocs.io) library.
 
 ## Installation
-0. Download the repository zip file and uncompress it
-0. Run the following command with your Python interpreter: `python setup.py install`
 
-Alternately, add the teslajson.py code to your program.
+Use any of these methods to download and install the teslajson module:
+
+1. Easiest method: use pip via the command :`pip install teslajson`
+2. Download the source code from https://github.com/gglockner/teslajson, then run: `python setup.py install`
+3. Download the source code, install requests-oauthlib, then add the file teslajson/teslajson.py to your Python project
 
 ## Public API
 `Connection(email, password, **kwargs)`:

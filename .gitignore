@@ -7,3 +7,5 @@ build/
 teslajson.egg-info/
 dist/
 MANIFEST
+new/*
+old/*
