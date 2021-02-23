@@ -26,7 +26,7 @@ Use any of these methods to download and install the teslajson module:
 
 1. Easiest method: use pip via the command :`pip install teslajson`
 2. Download the source code from https://github.com/gglockner/teslajson, then run: `python setup.py install`
-3. Download the source code, install requests-oauthlib, then add the file teslajson/teslajson.py to your Python project
+3. Download the source code, install requests-oauthlib and its dependencies, then add the file teslajson/teslajson.py to your Python project
 
 ## Public API
 `Connection(email, password, **kwargs)`:
